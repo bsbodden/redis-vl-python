@@ -996,8 +996,8 @@ class SemanticRouter(BaseModel):
     def get_route_references(
         self,
         route_name: str = "",
-        reference_ids: List[str] = [],
-        keys: List[str] = [],
+        reference_ids: Optional[List[str]] = None,
+        keys: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """Get references for an existing route route.
 
@@ -1008,6 +1008,10 @@ class SemanticRouter(BaseModel):
         Returns:
             List[Dict[str, Any]]]: Reference objects stored
         """
+        if reference_ids is None:
+            reference_ids = []
+        if keys is None:
+            keys = []
 
         if reference_ids:
             queries = self._make_filter_queries(reference_ids)
@@ -1032,8 +1036,8 @@ class SemanticRouter(BaseModel):
     def delete_route_references(
         self,
         route_name: str = "",
-        reference_ids: List[str] = [],
-        keys: List[str] = [],
+        reference_ids: Optional[List[str]] = None,
+        keys: Optional[List[str]] = None,
     ) -> int:
         """Get references for an existing semantic router route.
 
@@ -1045,6 +1049,10 @@ class SemanticRouter(BaseModel):
         Returns:
             int: Number of objects deleted
         """
+        if reference_ids is None:
+            reference_ids = []
+        if keys is None:
+            keys = []
 
         if reference_ids and not keys:
             queries = self._make_filter_queries(reference_ids)
@@ -2007,8 +2015,8 @@ class AsyncSemanticRouter(BaseModel):
     async def get_route_references(
         self,
         route_name: str = "",
-        reference_ids: List[str] = [],
-        keys: List[str] = [],
+        reference_ids: Optional[List[str]] = None,
+        keys: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """Get references for an existing route route (async).
 
@@ -2019,6 +2027,10 @@ class AsyncSemanticRouter(BaseModel):
         Returns:
             List[Dict[str, Any]]]: Reference objects stored
         """
+        if reference_ids is None:
+            reference_ids = []
+        if keys is None:
+            keys = []
 
         if reference_ids:
             queries = self._make_filter_queries(reference_ids)
@@ -2047,8 +2059,8 @@ class AsyncSemanticRouter(BaseModel):
     async def delete_route_references(
         self,
         route_name: str = "",
-        reference_ids: List[str] = [],
-        keys: List[str] = [],
+        reference_ids: Optional[List[str]] = None,
+        keys: Optional[List[str]] = None,
     ) -> int:
         """Get references for an existing semantic router route (async).
 
@@ -2060,6 +2072,10 @@ class AsyncSemanticRouter(BaseModel):
         Returns:
             int: Number of objects deleted
         """
+        if reference_ids is None:
+            reference_ids = []
+        if keys is None:
+            keys = []
 
         if reference_ids and not keys:
             queries = self._make_filter_queries(reference_ids)
