@@ -102,17 +102,38 @@ class LLMRouter(_SemanticRouter):
         elif routes is None:
             routes = []
 
-        # Map cost_optimization to routing_config
-        if cost_optimization:
-            if routing_config:
-                # Create a new instance with cost_optimization enabled
-                routing_config = routing_config.model_copy(
-                    update={"cost_optimization": True}
-                )
-            else:
-                from redisvl.extensions.router.schema import RoutingConfig
+        # Map legacy routing_config fields (default_tier → default_route)
+        if routing_config is not None:
+            config_dict = (
+                routing_config.model_dump()
+                if hasattr(routing_config, "model_dump")
+                else routing_config if isinstance(routing_config, dict) else {}
+            )
+            # Map default_tier → default_route
+            if "default_tier" in config_dict and "default_route" not in config_dict:
+                config_dict["default_route"] = config_dict.pop("default_tier")
+            # Map tier_thresholds → route_thresholds
+            if (
+                "tier_thresholds" in config_dict
+                and "route_thresholds" not in config_dict
+            ):
+                config_dict["route_thresholds"] = config_dict.pop("tier_thresholds")
+            # Apply cost_optimization if requested
+            if cost_optimization:
+                config_dict["cost_optimization"] = True
+            # Create new RoutingConfig with mapped fields
+            from redisvl.extensions.router.schema import (
+                RoutingConfig as NewRoutingConfig,
+            )
 
-                routing_config = RoutingConfig(cost_optimization=True)
+            routing_config = NewRoutingConfig(**config_dict)
+        elif cost_optimization:
+            # No routing_config provided, create one with cost_optimization
+            from redisvl.extensions.router.schema import (
+                RoutingConfig as NewRoutingConfig,
+            )
+
+            routing_config = NewRoutingConfig(cost_optimization=True)
 
         # Handle mutable default
         if connection_kwargs is None:
@@ -190,19 +211,52 @@ class LLMRouter(_SemanticRouter):
         self._update_router_state()
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dict with 'tiers' for backward compatibility."""
+        """Convert to dict with 'tiers' and legacy routing_config fields for backward compatibility."""
         result = super().to_dict()
         # Map routes → tiers for backward compatibility
         result["tiers"] = result.pop("routes")
+        # Also expose legacy routing_config field names expected by old tooling
+        routing_config = result.get("routing_config")
+        if isinstance(routing_config, dict):
+            # default_route → default_tier (keep both for forward compatibility)
+            if (
+                "default_route" in routing_config
+                and "default_tier" not in routing_config
+            ):
+                routing_config["default_tier"] = routing_config["default_route"]
+            # route_thresholds → tier_thresholds (keep both for forward compatibility)
+            if (
+                "route_thresholds" in routing_config
+                and "tier_thresholds" not in routing_config
+            ):
+                routing_config["tier_thresholds"] = routing_config["route_thresholds"]
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any], **kwargs):
-        """Load from dict with 'tiers' for backward compatibility."""
+        """Load from dict with 'tiers' and legacy routing_config fields for backward compatibility."""
+        # Work on a shallow copy so we don't mutate the caller's dict
+        data = data.copy()
         # Map tiers → routes for backward compatibility
         if "tiers" in data and "routes" not in data:
-            data = data.copy()
             data["routes"] = data.pop("tiers")
+        # Normalize legacy routing_config field names to the new schema
+        routing_config = data.get("routing_config")
+        if isinstance(routing_config, dict):
+            routing_config = routing_config.copy()
+            # default_tier → default_route
+            if (
+                "default_tier" in routing_config
+                and "default_route" not in routing_config
+            ):
+                routing_config["default_route"] = routing_config["default_tier"]
+            # tier_thresholds → route_thresholds
+            if (
+                "tier_thresholds" in routing_config
+                and "route_thresholds" not in routing_config
+            ):
+                routing_config["route_thresholds"] = routing_config["tier_thresholds"]
+            data["routing_config"] = routing_config
         return super().from_dict(data, **kwargs)
 
     @classmethod
@@ -304,17 +358,38 @@ class AsyncLLMRouter(_AsyncSemanticRouter):
         elif routes is None:
             routes = []
 
-        # Map cost_optimization to routing_config
-        if cost_optimization:
-            if routing_config:
-                # Create a new instance with cost_optimization enabled
-                routing_config = routing_config.model_copy(
-                    update={"cost_optimization": True}
-                )
-            else:
-                from redisvl.extensions.router.schema import RoutingConfig
+        # Map legacy routing_config fields (default_tier → default_route)
+        if routing_config is not None:
+            config_dict = (
+                routing_config.model_dump()
+                if hasattr(routing_config, "model_dump")
+                else routing_config if isinstance(routing_config, dict) else {}
+            )
+            # Map default_tier → default_route
+            if "default_tier" in config_dict and "default_route" not in config_dict:
+                config_dict["default_route"] = config_dict.pop("default_tier")
+            # Map tier_thresholds → route_thresholds
+            if (
+                "tier_thresholds" in config_dict
+                and "route_thresholds" not in config_dict
+            ):
+                config_dict["route_thresholds"] = config_dict.pop("tier_thresholds")
+            # Apply cost_optimization if requested
+            if cost_optimization:
+                config_dict["cost_optimization"] = True
+            # Create new RoutingConfig with mapped fields
+            from redisvl.extensions.router.schema import (
+                RoutingConfig as NewRoutingConfig,
+            )
 
-                routing_config = RoutingConfig(cost_optimization=True)
+            routing_config = NewRoutingConfig(**config_dict)
+        elif cost_optimization:
+            # No routing_config provided, create one with cost_optimization
+            from redisvl.extensions.router.schema import (
+                RoutingConfig as NewRoutingConfig,
+            )
+
+            routing_config = NewRoutingConfig(cost_optimization=True)
 
         # Create the async semantic router
         router = await _AsyncSemanticRouter.create(
@@ -398,19 +473,52 @@ class AsyncLLMRouter(_AsyncSemanticRouter):
         await self._update_router_state()
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dict with 'tiers' for backward compatibility."""
+        """Convert to dict with 'tiers' and legacy routing_config fields for backward compatibility."""
         result = super().to_dict()
         # Map routes → tiers for backward compatibility
         result["tiers"] = result.pop("routes")
+        # Also expose legacy routing_config field names expected by old tooling
+        routing_config = result.get("routing_config")
+        if isinstance(routing_config, dict):
+            # default_route → default_tier (keep both for forward compatibility)
+            if (
+                "default_route" in routing_config
+                and "default_tier" not in routing_config
+            ):
+                routing_config["default_tier"] = routing_config["default_route"]
+            # route_thresholds → tier_thresholds (keep both for forward compatibility)
+            if (
+                "route_thresholds" in routing_config
+                and "tier_thresholds" not in routing_config
+            ):
+                routing_config["tier_thresholds"] = routing_config["route_thresholds"]
         return result
 
     @classmethod
     async def from_dict(cls, data: Dict[str, Any], **kwargs):
-        """Load from dict with 'tiers' for backward compatibility."""
+        """Load from dict with 'tiers' and legacy routing_config fields for backward compatibility."""
+        # Work on a shallow copy so we don't mutate the caller's dict
+        data = data.copy()
         # Map tiers → routes for backward compatibility
         if "tiers" in data and "routes" not in data:
-            data = data.copy()
             data["routes"] = data.pop("tiers")
+        # Normalize legacy routing_config field names to the new schema
+        routing_config = data.get("routing_config")
+        if isinstance(routing_config, dict):
+            routing_config = routing_config.copy()
+            # default_tier → default_route
+            if (
+                "default_tier" in routing_config
+                and "default_route" not in routing_config
+            ):
+                routing_config["default_route"] = routing_config["default_tier"]
+            # tier_thresholds → route_thresholds
+            if (
+                "tier_thresholds" in routing_config
+                and "route_thresholds" not in routing_config
+            ):
+                routing_config["route_thresholds"] = routing_config["tier_thresholds"]
+            data["routing_config"] = routing_config
         router = await _AsyncSemanticRouter.from_dict(data, **kwargs)
 
         # Wrap in AsyncLLMRouter for backward compatibility
