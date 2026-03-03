@@ -1065,19 +1065,23 @@ class SemanticRouter(BaseModel):
         if not keys:
             raise ValueError(f"No references found for route {route_name}")
 
+        separator = self._index.key_separator
         to_be_deleted = []
         for key in keys:
-            route_name = key.split(":")[-2]
+            key_str = key.decode() if isinstance(key, (bytes, bytearray)) else str(key)
+            parsed_route_name = key_str.split(separator)[-2]
             to_be_deleted.append(
-                (route_name, convert_bytes(self._index.client.hgetall(key)))  # type: ignore
+                (parsed_route_name, convert_bytes(self._index.client.hgetall(key)))  # type: ignore
             )
 
         deleted = self._index.drop_keys(keys)
 
-        for route_name, delete in to_be_deleted:
-            route = self.get(route_name)
+        for route_name_from_key, delete in to_be_deleted:
+            route = self.get(route_name_from_key)
             if not route:
-                raise ValueError(f"Route {route_name} not found in the SemanticRouter")
+                raise ValueError(
+                    f"Route {route_name_from_key} not found in the SemanticRouter"
+                )
             route.references.remove(delete["reference"])
 
         self._update_router_state()
@@ -2092,19 +2096,23 @@ class AsyncSemanticRouter(BaseModel):
         if not keys:
             raise ValueError(f"No references found for route {route_name}")
 
+        separator = self._index.key_separator
         to_be_deleted = []
         client = self._index.client
         for key in keys:
-            route_name = key.split(self._index.key_separator)[-2]
+            key_str = key.decode() if isinstance(key, (bytes, bytearray)) else str(key)
+            parsed_route_name = key_str.split(separator)[-2]
             hgetall_result = await client.hgetall(key)  # type: ignore
-            to_be_deleted.append((route_name, convert_bytes(hgetall_result)))
+            to_be_deleted.append((parsed_route_name, convert_bytes(hgetall_result)))
 
         deleted = await self._index.drop_keys(keys)
 
-        for route_name, delete in to_be_deleted:
-            route = self.get(route_name)
+        for route_name_from_key, delete in to_be_deleted:
+            route = self.get(route_name_from_key)
             if not route:
-                raise ValueError(f"Route {route_name} not found in the SemanticRouter")
+                raise ValueError(
+                    f"Route {route_name_from_key} not found in the SemanticRouter"
+                )
             route.references.remove(delete["reference"])
 
         await self._update_router_state()
