@@ -194,7 +194,8 @@ class LLMRouter(_SemanticRouter):
 
     def remove_tier(self, tier_name: str):
         """Remove a tier (backward compatibility)."""
-        return self.remove_route(tier_name)
+        self.remove_route(tier_name)
+        self._update_router_state()
 
     def add_tier_references(self, tier_name: str, references):
         """Add references to a tier (backward compatibility)."""
@@ -456,7 +457,8 @@ class AsyncLLMRouter(_AsyncSemanticRouter):
 
     async def remove_tier(self, tier_name: str):
         """Remove a tier (backward compatibility)."""
-        return await self.remove_route(tier_name)
+        await self.remove_route(tier_name)
+        await self._update_router_state()
 
     async def add_tier_references(self, tier_name: str, references):
         """Add references to a tier (backward compatibility)."""
@@ -532,36 +534,17 @@ class AsyncLLMRouter(_AsyncSemanticRouter):
         return async_llm_router
 
     @classmethod
-    async def from_yaml(cls, file_path: str, **kwargs):
-        """Load from YAML with 'tiers' for backward compatibility."""
-        from pathlib import Path
-
-        import yaml
-
-        fp = Path(file_path).resolve()
-        if not fp.exists():
-            raise FileNotFoundError(f"File {file_path} does not exist")
-
-        with open(fp, "r") as f:
-            yaml_data = yaml.safe_load(f)
-
-        # Use our from_dict which handles tiers → routes mapping
-        return await cls.from_dict(yaml_data, **kwargs)
-
-    @classmethod
     async def from_existing(cls, name: str, **kwargs) -> "AsyncLLMRouter":  # type: ignore[override]
         """Load from existing with backward compatibility."""
-        router = await _AsyncSemanticRouter.from_existing(name, **kwargs)
+        # Use super() to preserve cls resolution chain, which ensures
+        # our from_dict is called to handle tiers→routes mapping
+        return await super(AsyncLLMRouter, cls).from_existing(name, **kwargs)  # type: ignore[return-value]
 
-        # Wrap in AsyncLLMRouter for backward compatibility
-        async_llm_router = cls.model_construct(
-            name=router.name,
-            routes=router.routes,
-            vectorizer=router.vectorizer,
-            routing_config=router.routing_config,
-        )
-        object.__setattr__(async_llm_router, "_index", router._index)
-        return async_llm_router
+    @classmethod
+    async def from_yaml(cls, file_path: str, **kwargs):
+        """Load from YAML with 'tiers' for backward compatibility."""
+        # The parent from_yaml calls from_dict, which will handle the mapping
+        return await super().from_yaml(file_path, **kwargs)
 
     async def export_with_embeddings(self, file_path: str):
         """Export with embeddings using 'tiers' for backward compatibility (async)."""
